@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from base_llama import LlamaPreTrainedModel, LlamaConfig
 from rope import apply_rotary_emb
 from utils import *
-
+#test
 # Root Mean Square Layer Normalization (https://arxiv.org/abs/1910.07467)
 # borrowed from the official Llama implementation:
 # https://github.com/facebookresearch/llama/blob/main/llama/model.py
