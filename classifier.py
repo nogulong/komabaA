@@ -56,3 +56,4 @@ class LlamaEmbeddingClassifier(torch.nn.Module):
 		'''
 		# todo
 		raise NotImplementedError
+	#henkou
