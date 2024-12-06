@@ -44,6 +44,11 @@ class RMSNorm(torch.nn.Module):
             torch.Tensor: The normalized tensor.
         """
         # todo
+        
+        RMS = torch.sqrt(torch.mean(x**2, dim=-1, keepdim=True) + self.eps)
+        output = x / RMS
+        return output
+
         raise NotImplementedError
 
     def forward(self, x):
@@ -94,6 +99,12 @@ class Attention(nn.Module):
         attention matrix before applying it to the value tensor.
         '''
         # todo
+        
+        score = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(self.head_dim)
+        score = F.softmax(score, dim=-1)
+        score = self.attn_dropout(score)
+        output = torch.matmul(score, value)
+        return output
         raise NotImplementedError
 
     def forward(
@@ -197,6 +208,15 @@ class LlamaLayer(nn.Module):
            output of the feed-forward network
         '''
         # todo
+        h = self.attention_norm(x)
+        h = self.attention(h)
+        h = x + h
+        attention_out = h
+        h = self.ffn_norm(h)
+        h = self.feed_forward(h)
+        h = attention_out + h
+        return h
+
         raise NotImplementedError
 
 class Llama(LlamaPreTrainedModel):
@@ -274,7 +294,8 @@ class Llama(LlamaPreTrainedModel):
             logits, _ = self(idx_cond)
             logits = logits[:, -1, :] # crop to just the final time step
             # todo
-            raise NotImplementedError
+
+            #raise NotImplementedError
 
             if temperature == 0.0:
                 # select the single most likely index
@@ -290,6 +311,12 @@ class Llama(LlamaPreTrainedModel):
                 Note that we are not using top-k sampling/nucleus sampling in this procedure.
                 '''
                 idx_next = None
+                # todo
+                logits = logits / temperature
+                probs = F.softmax(logits, dim=-1)
+                idx_next = torch.multinomial(probs, 1)
+                
+
             # append sampled index to the running sequence and continue
             idx = torch.cat((idx, idx_next), dim=1)
 
