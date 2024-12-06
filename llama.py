@@ -45,9 +45,7 @@ class RMSNorm(torch.nn.Module):
         """
         # todo
         
-        RMS = torch.sqrt(torch.mean(x**2, dim=-1, keepdim=True) + self.eps)
-        output = x / RMS
-        return output
+        return x / torch.sqrt(torch.mean(x**2, dim=-1, keepdim=True) + self.eps)
 
         raise NotImplementedError
 
@@ -299,7 +297,7 @@ class Llama(LlamaPreTrainedModel):
 
             if temperature == 0.0:
                 # select the single most likely index
-                idx_next = None
+                idx_next = torch.argmax(logits, dim=-1, keepdim=True)
             else:
                 '''
                 Perform temperature sampling:
