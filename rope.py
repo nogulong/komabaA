@@ -51,25 +51,40 @@ def apply_rotary_emb(
     _, seqlen, _, _ = query.shape
     device = query.device
     # todo
-    #
-    # Please refer to slide 22 in https://phontron.com/class/anlp2024/assets/slides/anlp-05-transformers.pdf
-    # and Section 3 in https://arxiv.org/abs/2104.09864.
-
-    # reshape xq and xk to match the complex representation
+    # 1. 基底周波数の計算
+    # head_dimは偶数を想定。0,2,4...と2つずつペアを作る
+    frequencies = torch.arange(0, head_dim, 2).float()
+    freqs = 1.0 / (theta ** (frequencies / head_dim))
+    
+    # 2. 各位置(m)での角度を計算
+    t = torch.arange(seqlen, device=device)
+    freqs = torch.outer(t, freqs)  # (seqlen, head_dim/2)
+    
+    # 3. cos/sinを計算
+    freqs_cos = torch.cos(freqs)  # (seqlen, head_dim/2)
+    freqs_sin = torch.sin(freqs)  # (seqlen, head_dim/2)
+    
+    # 4. クエリとキーを実部と虚部に分割
     query_real, query_imag = query.float().reshape(query.shape[:-1] + (-1, 2)).unbind(-1)
     key_real, key_imag = key.float().reshape(key.shape[:-1] + (-1, 2)).unbind(-1)
-    # This separates each query/key vector into its odd and even indices (assuming *one-indexing*).
-    # query_real contains q_1, q_3, q_5, ... and query_imag contains q_2, q_4, q_6, ...
-
-    # First, compute the trigonometric values in the second and fourth columns in
-    # slide 22 (linked above).
-
-    # Then, combine these trigonometric values with the tensors query_real, query_imag,
-    # key_real, and key_imag.
-
-    raise NotImplementedError
-
-    query_out = None
-    key_out = None
-    # Return the rotary position embeddings for the query and key tensors
+    
+    # 5. ブロードキャストのための形状調整
+    # freqs_cos: (seqlen, head_dim/2) -> (1, seqlen, 1, head_dim/2)
+    freqs_cos = freqs_cos.view(1, seqlen, 1, freqs_cos.shape[-1])
+    freqs_sin = freqs_sin.view(1, seqlen, 1, freqs_sin.shape[-1])
+    
+    # 6. 回転の適用
+    # スライドの式を実装:
+    # 実部: x_real * cos - x_imag * sin
+    # 虚部: x_real * sin + x_imag * cos
+    query_out_real = query_real * freqs_cos - query_imag * freqs_sin
+    query_out_imag = query_real * freqs_sin + query_imag * freqs_cos
+    key_out_real = key_real * freqs_cos - key_imag * freqs_sin
+    key_out_imag = key_real * freqs_sin + key_imag * freqs_cos
+    
+    # 7. 実部と虚部を結合して元の形状に戻す
+    query_out = torch.stack([query_out_real, query_out_imag], dim=-1)
+    query_out = query_out.reshape(query.shape).type_as(query)
+    key_out = torch.stack([key_out_real, key_out_imag], dim=-1)
+    key_out = key_out.reshape(key.shape).type_as(key)
     return query_out, key_out
